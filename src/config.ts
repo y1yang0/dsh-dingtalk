@@ -35,6 +35,8 @@ export interface Config {
   groupAccess: GroupAccess
   groupAllowlist: string[]
   replyMode: { direct: ReplyMode; group: ReplyMode }
+  /** 定稿正文取材：all=聚合本回合全部 assistant 文本；last=只保留最后一段。 */
+  finalTextPolicy: 'all' | 'last'
   streaming: { enabled: boolean; throttleMs: number; maxCardChars: number }
   asyncMode: boolean
   ackText: string
@@ -126,6 +128,11 @@ export const Config: Schema<Config> = Schema.object({
       '群聊回复载体；多 bot 群协作需 @ 其他机器人时改 markdown/text',
     ),
   }).description('回复载体：aicard=AI 卡片（支持流式）；markdown/text=普通消息（一次性）'),
+  finalTextPolicy: Schema.union(['all', 'last'])
+    .default('all')
+    .description(
+      '定稿正文取材：all=聚合本回合全部 assistant 文本；last=只保留最后一段，工具调用之间的进度叙述不进最终回复（流式卡片过程不受影响）',
+    ),
   streaming: Schema.object({
     enabled: Schema.boolean()
       .default(true)

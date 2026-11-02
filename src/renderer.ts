@@ -4,7 +4,8 @@
  * settle-once), markdown, plain text, or asyncMode (ack now, push later).
  * Consumes the `session/event` feed; the live streaming view is assembled
  * from `assistant/chunk` deltas plus tool-progress lines, while the settled
- * reply prefers the clean aggregated `assistant/message` texts.
+ * reply prefers the clean aggregated `assistant/message` texts (or only the
+ * last one under `finalTextPolicy: 'last'`).
  */
 import type { Config, ReplyMode } from './config.js'
 import type { HostSession, HostSessionEvent } from './host.js'
@@ -75,7 +76,10 @@ function renderLive(segments: Segment[]): string {
 }
 
 export interface RendererDeps {
-  config: Pick<Config, 'replyMode' | 'streaming' | 'asyncMode' | 'ackText' | 'markdownTitle' | 'emotionFirstResponse'>
+  config: Pick<
+    Config,
+    'replyMode' | 'streaming' | 'asyncMode' | 'ackText' | 'markdownTitle' | 'emotionFirstResponse' | 'finalTextPolicy'
+  >
   outbound: ReplySink
   emotion: Emotion
   createCard(target: CardTarget): Promise<AICard | null>
@@ -266,7 +270,11 @@ export class Renderer {
     // user already got its confirmation elsewhere, settle without publishing.
     const interrupted = kind === 'aborted'
 
-    const substance = st.finalParts.join('\n\n').trim()
+    // finalTextPolicy=last settles with only the final assistant message:
+    // mid-turn progress narration stays out of the settled reply (the live
+    // streaming view still shows it as it happens).
+    const settledParts = this.deps.config.finalTextPolicy === 'last' ? st.finalParts.slice(-1) : st.finalParts
+    const substance = settledParts.join('\n\n').trim()
     const liveText = renderLive(st.live)
 
     if (interrupted) {
